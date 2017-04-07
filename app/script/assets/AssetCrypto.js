@@ -22,20 +22,27 @@
 window.z = window.z || {};
 window.z.assets = z.assets || {};
 
-z.assets.AssetCrypto = {
+z.assets.AssetCrypto = (() => {
+
+  function generate_iv() {
+    const randomValues = new Uint32Array(4).map(() => libsodium.getRandomValue());
+    const iv = new Uint8Array(randomValues.buffer);
+    if ((iv.length > 0) && iv.every((value) => value > 0)) {
+      return iv;
+    }
+    throw Error('Failed to initialize iv with random values');
+  }
 
   /*
   @param {ArrayBuffer} key_bytes - AES key used for encryption
   @param {ArrayBuffer} computed_sha256 - SHA-256 checksum of the ciphertext
   @param {ArrayBuffer} ciphertext - Encrypted plaintext
   */
-  encrypt_aes_asset(plaintext) {
-    const iv = new Uint8Array(16);
+  function encrypt_aes_asset(plaintext) {
+    const iv = generate_iv();
     let key = null;
     let iv_ciphertext = null;
     let computed_sha256 = null;
-
-    window.crypto.getRandomValues(iv);
 
     return window.crypto.subtle.generateKey({name: 'AES-CBC', length: 256}, true, ['encrypt'])
     .then(function(ckey) {
@@ -53,14 +60,14 @@ z.assets.AssetCrypto = {
 
       return window.crypto.subtle.exportKey('raw', key);
     }).then(key_bytes => [key_bytes, computed_sha256, iv_ciphertext.buffer]);
-  },
+  }
 
   /*
   @param {ArrayBuffer} key_bytes - AES key used for encryption
   @param {ArrayBuffer} computed_sha256 - SHA-256 checksum of the ciphertext
   @param {ArrayBuffer} ciphertext - Encrypted plaintext
   */
-  decrypt_aes_asset(ciphertext, key_bytes, reference_sha256) {
+  function decrypt_aes_asset(ciphertext, key_bytes, reference_sha256) {
     return window.crypto.subtle.digest('SHA-256', ciphertext)
     .then(function(computed_sha256) {
       const a = new Uint32Array(reference_sha256);
@@ -76,6 +83,11 @@ z.assets.AssetCrypto = {
       const img_ciphertext = ciphertext.slice(16);
       return window.crypto.subtle.decrypt({name: 'AES-CBC', iv}, key, img_ciphertext);
     });
-  },
+  }
 
-};
+  return {
+    encrypt_aes_asset,
+    decrypt_aes_asset,
+  };
+
+})();
