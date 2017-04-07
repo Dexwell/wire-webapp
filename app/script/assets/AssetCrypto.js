@@ -24,11 +24,11 @@ window.z.assets = z.assets || {};
 
 z.assets.AssetCrypto = (() => {
 
-  function generate_iv() {
-    const randomValues = new Uint32Array(4).map(() => libsodium.getRandomValue());
-    const iv = new Uint8Array(randomValues.buffer);
-    if ((iv.length > 0) && iv.every((value) => value > 0)) {
-      return iv;
+  function generate_random_bytes(length) {
+    const randomValues = new Uint32Array(length / 4).map(() => libsodium.getRandomValue());
+    const ramdonBytes = new Uint8Array(randomValues.buffer);
+    if ((ramdonBytes.length > 0) && ramdonBytes.every((byte) => byte > 0)) {
+      return ramdonBytes;
     }
     throw Error('Failed to initialize iv with random values');
   }
@@ -39,12 +39,13 @@ z.assets.AssetCrypto = (() => {
   @param {ArrayBuffer} ciphertext - Encrypted plaintext
   */
   function encrypt_aes_asset(plaintext) {
-    const iv = generate_iv();
+    const iv = generate_random_bytes(16);
+    const key_bytes_raw = generate_random_bytes(32);
     let key = null;
     let iv_ciphertext = null;
     let computed_sha256 = null;
 
-    return window.crypto.subtle.generateKey({name: 'AES-CBC', length: 256}, true, ['encrypt'])
+    return window.crypto.subtle.importKey('raw', key_bytes_raw.buffer, 'AES-CBC', true, ['encrypt'])
     .then(function(ckey) {
       key = ckey;
 
